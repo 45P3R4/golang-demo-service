@@ -1,1 +1,2 @@
-# golang-demo-service
+# Golang demo service
+Kafka\Postgres\Go practice
