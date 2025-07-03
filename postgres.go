@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/jackc/pgx/v5"
@@ -156,8 +155,14 @@ func DbGetRowById(id string) (order Order, err error) {
 	rows, _ := conn.Query(context.Background(), "select * from orders where order_uid = $1", id)
 	orderData, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[Order])
 	if err != nil {
-		log.Fatal("CollectRows order error: ", err)
+		panic("Collect order rows error")
 	}
+
+	delivery, _ := conn.Query(context.Background(), "select * from deliveries where delivery_uid = $1", id)
+	orderData.Delivery, err = pgx.CollectOneRow(delivery, pgx.RowToStructByName[Delivery])
+
+	payment, _ := conn.Query(context.Background(), "select * from payments where transaction = $1", id)
+	orderData.Payment, err = pgx.CollectOneRow(payment, pgx.RowToStructByName[Payment])
 
 	//Get every item RID
 	for _, rid := range orderData.ItemsRID {
@@ -165,7 +170,7 @@ func DbGetRowById(id string) (order Order, err error) {
 		items, _ := conn.Query(context.Background(), "select * from items where rid = $1", rid)
 		dataItems, err := pgx.CollectOneRow(items, pgx.RowToStructByName[Item])
 		if err != nil {
-			log.Fatal("Failed to collect rows for items array: ", err)
+			panic("Failed to collect rows for items array")
 		}
 
 		orderData.Items = append(orderData.Items, dataItems)
