@@ -12,6 +12,7 @@ func getOrderById(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
 
 	id := req.PathValue("id")
 
@@ -30,7 +31,6 @@ func getOrderById(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, "Failed to marshal JSON")
 	}
-	w.Header().Set("Content-Type", "application/json")
 
 	fmt.Fprintf(w, "%s", dataJson)
 }

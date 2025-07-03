@@ -35,25 +35,24 @@ var button = document.getElementById("submit-uid-btn")
       </div>
     `;
 
-    //   htmlItemString = `
-    //   <div class="order-item">
-    //     <p><span class="label">Product:</span> ${item.name} (${item.brand})</p>
-    //     <p><span class="label">Price:</span> ${item.price} (${item.sale}% off)</p>
-    //     <p><span class="label">Total:</span> ${item.total_price}</p>
-    //   </div>
-    // `;
-    container.innerHTML = htmlOrderString
+      orderData.items.forEach(item => {
+        htmlItemString = `
+      <div class="order-section">
+      <h2>Item Information</h2>
+        <p><span class="label">Product:</span> ${item.name} (${item.brand})</p>
+        <p><span class="label">Price:</span> ${item.price} (${item.sale}% off)</p>
+        <p><span class="label">Total:</span> ${item.total_price}</p>
+      </div>
+    `;
+
+    htmlOrderString += htmlItemString;
+        
+      });
+      
+    container.innerHTML = htmlOrderString;
 
     })
     .catch(err => console.error(err));
 
     var container = document.getElementById("order-container");
     };
-
-
-
-    
-
-
-
-

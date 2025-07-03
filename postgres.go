@@ -166,7 +166,6 @@ func DbGetRowById(id string) (order Order, err error) {
 
 	//Get every item RID
 	for _, rid := range orderData.ItemsRID {
-		fmt.Println(rid)
 		items, _ := conn.Query(context.Background(), "select * from items where rid = $1", rid)
 		dataItems, err := pgx.CollectOneRow(items, pgx.RowToStructByName[Item])
 		if err != nil {
