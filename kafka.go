@@ -52,7 +52,10 @@ func DbInsert(m kafka.Message) {
 
 	dataOrder.DeliveryUID = dataOrder.Delivery.DeliveryUID
 	dataOrder.PaymentTransaction = dataOrder.Payment.Transaction
-	dataOrder.ItemsRID = append(dataOrder.ItemsRID, dataOrder.Items[0].RID)
+
+	for _, item := range dataOrder.Items {
+		dataOrder.ItemsRID = append(dataOrder.ItemsRID, item.RID)
+	}
 
 	DbInsertOrders(dataOrder)
 }
