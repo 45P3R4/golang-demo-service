@@ -2,11 +2,24 @@ body {
     background: linear-gradient(97.26deg,#ed3cca .49%,#df34d2 14.88%,#d02bd9 29.27%,#bf22e1 43.14%,#ae1ae8 57.02%,#9a10f0 70.89%,#8306f7 84.76%,#7c1af8 99.15%),linear-gradient(rgba(0,0,0,.05),rgba(0,0,0,.05));
 }
 
-.container-main {
-    height: 100vh;
+#main-container {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#order-container {
+    width: 70vw;
+    margin: 0 auto;
+
+}
+
+.order-section {
+    background-color: aliceblue;
+    border-radius: 15px;
+    box-shadow: 5px 4px 2px black;
+    margin: 10px 0;
+    padding: 20px;
 }
 
 input {
