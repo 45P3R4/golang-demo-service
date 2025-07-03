@@ -9,7 +9,17 @@ import (
 // var cache map[string]Order
 
 func getOrderById(w http.ResponseWriter, req *http.Request) {
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	id := req.PathValue("id")
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(w, "Order not found")
+		}
+	}()
 
 	data, err := DbGetRowById(id)
 	if err != nil {
