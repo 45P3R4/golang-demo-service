@@ -5,6 +5,7 @@ var button = document.getElementById("submit-uid-btn")
  button.onclick = function() {
 
     console.log(input.value)
+    const scriptStartTime = performance.now();
 
        fetch('http://localhost:8081/order/' + input.value, {
           mode: 'cors',
@@ -15,6 +16,9 @@ var button = document.getElementById("submit-uid-btn")
     .then(result => result.json())
     .then((orderData) => {
       console.log(orderData)
+
+      const timestamp = orderData.payment.payment_dt;
+      const date = new Date(timestamp * 1000);
 
           htmlOrderString = `
       <div class="order-section">
@@ -35,7 +39,7 @@ var button = document.getElementById("submit-uid-btn")
       <div class="order-section">
         <h2>Payment Information</h2>
         <p><div>Amount: ${orderData.payment.amount} ${orderData.payment.currency}</div></p>
-        <p><div>Payment Date: ${orderData.payment.payment_dt}</div></p>
+        <p><div>Payment Date: ${date}</div></p>
         <p><div>Provider: ${orderData.payment.provider}</div></p>
       </div>
     `;
@@ -55,6 +59,10 @@ var button = document.getElementById("submit-uid-btn")
       
     container.innerHTML = htmlOrderString;
     item_container.innerHTML = htmlItemString;
+
+    const scriptEndTime = performance.now();
+    const totalTime = scriptEndTime - scriptStartTime;
+    console.log(`Время выполнения всего скрипта: ${totalTime.toFixed(2)} мс`);
 
     })
     .catch(err => console.error(err));

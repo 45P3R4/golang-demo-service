@@ -75,6 +75,15 @@ func oneOf(options []string) string {
 	return options[rand.Intn(len(options))]
 }
 
+func randomTime() time.Time {
+	min := time.Date(1970, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
+	max := time.Date(2070, 1, 0, 0, 0, 0, 0, time.UTC).Unix()
+	delta := max - min
+
+	sec := rand.Int63n(delta) + min
+	return time.Unix(sec, 0)
+}
+
 func generateRandomOrder() Order {
 	rand.Seed(time.Now().UnixNano())
 
@@ -159,7 +168,7 @@ func generateRandomOrder() Order {
 		DeliveryService:    oneOf([]string{"meest", "pony", "dhl", "fedex"}),
 		Shardkey:           rand.Intn(10) + 1,
 		SmID:               rand.Intn(100) + 1,
-		DateCreated:        time.Now().Add(-time.Duration(rand.Intn(72)) * time.Hour),
+		DateCreated:        randomTime(),
 		OofShard:           rand.Intn(2) + 1,
 	}
 
@@ -222,7 +231,7 @@ func produceInvalidData() {
 
 func main() {
 
-	// produceTestData()
-	produceInvalidData()
+	produceTestData()
+	// produceInvalidData()
 
 }
