@@ -2,28 +2,51 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/segmentio/kafka-go"
 )
 
-const postgresUrl = "postgresql://localhost/WBORDERS?user=wbdev&password=admin"
+var dbConnection = DbConnect()
 
-func DbConnect(connectionUrl string) *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), connectionUrl)
+func DbConnect() *pgx.Conn {
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	postgresURL := "postgresql://localhost/WBORDERS?user=" + dbUser + "&password=" + dbPassword
+
+	conn, err := pgx.Connect(context.Background(), postgresURL)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
+		panic("[DbConnect]: Unable to connect to database: " + err.Error())
 	}
 	return conn
 }
 
-func DbInsertOrders(order Order) {
-	conn := DbConnect(postgresUrl)
-	defer conn.Close(context.Background())
+func DbInsert(m kafka.Message) {
+	var dataOrder Order
 
-	_, err := conn.Exec(context.Background(),
+	dataOrder.ItemsRID = make([]uuid.UUID, 0)
+	dataOrder.Items = make([]Item, 0)
+
+	err := json.Unmarshal(m.Value, &dataOrder)
+	if err != nil {
+		panic("[DbInsert]: failed to unmarshal JSON: " + err.Error())
+	}
+
+	DbInsertItems(dataOrder.Items)
+	DbInsertDeliveries(dataOrder.Delivery)
+	DbInsertPayments(dataOrder.Payment)
+
+	dataOrder.DeliveryUID = dataOrder.Delivery.DeliveryUID
+	dataOrder.PaymentTransaction = dataOrder.Payment.Transaction
+
+	DbInsertOrders(dataOrder)
+}
+
+func DbInsertOrders(order Order) {
+	_, err := dbConnection.Exec(context.Background(),
 		`INSERT INTO orders (
 			order_uid, 
 			track_number, 
@@ -57,16 +80,13 @@ func DbInsertOrders(order Order) {
 		order.OofShard)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to insert orders data: %v\n", err)
-		os.Exit(1)
+		panic("[DbInsertOrders]: Unable to insert orders data: " + err.Error())
 	}
 }
 
 func DbInsertDeliveries(delivery Delivery) {
-	conn := DbConnect(postgresUrl)
-	defer conn.Close(context.Background())
 
-	_, err := conn.Exec(context.Background(),
+	_, err := dbConnection.Exec(context.Background(),
 		`INSERT INTO deliveries (
 			delivery_uid, name, phone, zip,
 			city, address, region, email
@@ -83,16 +103,13 @@ func DbInsertDeliveries(delivery Delivery) {
 		delivery.Email)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to insert delivery data: %v\n", err)
-		os.Exit(1)
+		panic("[DbInsertDeliveries]: Unable to insert delivery data: " + err.Error())
 	}
 }
 
 func DbInsertPayments(payment Payment) {
-	conn := DbConnect(postgresUrl)
-	defer conn.Close(context.Background())
 
-	_, err := conn.Exec(context.Background(),
+	_, err := dbConnection.Exec(context.Background(),
 		`INSERT INTO payments (
 			transaction, request_id, currency, provider,
 			amount, payment_dt, bank, delivery_cost,
@@ -112,17 +129,14 @@ func DbInsertPayments(payment Payment) {
 		payment.CustomFee)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to insert payment data: %v\n", err)
-		os.Exit(1)
+		panic("[DbInsertPayments]: Unable to insert payment data: " + err.Error())
 	}
 }
 
 func DbInsertItems(items []Item) {
-	conn := DbConnect(postgresUrl)
-	defer conn.Close(context.Background())
 
 	for _, item := range items {
-		_, err := conn.Exec(context.Background(),
+		_, err := dbConnection.Exec(context.Background(),
 			`INSERT INTO items (
 			chrt_id, track_number, price,
 			rid, name, sale, size, total_price,
@@ -142,37 +156,82 @@ func DbInsertItems(items []Item) {
 			item.Brand,
 			item.Status)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error inserting item: %v", err)
+			panic("[DbInsertItems]: Unable to insert item data: " + err.Error())
 		}
 	}
 }
 
 func DbGetRowById(id string) (order Order, err error) {
-	conn := DbConnect(postgresUrl)
-	defer conn.Close(context.Background())
-
 	//Get order row
-	rows, _ := conn.Query(context.Background(), "select * from orders where order_uid = $1", id)
+	rows, _ := dbConnection.Query(context.Background(), "select * from orders where order_uid = $1", id)
 	orderData, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[Order])
 	if err != nil {
-		panic("Collect order rows error")
+		panic("[DbGetRowById]: Failed to collect order row:" + err.Error())
 	}
 
-	delivery, _ := conn.Query(context.Background(), "select * from deliveries where delivery_uid = $1", id)
+	//Get delivery by order id
+	delivery, _ := dbConnection.Query(context.Background(), "select * from deliveries where delivery_uid = $1", id)
 	orderData.Delivery, err = pgx.CollectOneRow(delivery, pgx.RowToStructByName[Delivery])
+	if err != nil {
+		panic("[DbGetRowById]: Failed to collect delivery row: " + err.Error())
+	}
 
-	payment, _ := conn.Query(context.Background(), "select * from payments where transaction = $1", id)
+	//Get payment by order id
+	payment, _ := dbConnection.Query(context.Background(), "select * from payments where transaction = $1", id)
 	orderData.Payment, err = pgx.CollectOneRow(payment, pgx.RowToStructByName[Payment])
+	if err != nil {
+		panic("[DbGetRowById]: Failed to collect payment row:" + err.Error())
+	}
 
 	//Get every item RID
 	for _, rid := range orderData.ItemsRID {
-		items, _ := conn.Query(context.Background(), "select * from items where rid = $1", rid)
+		items, _ := dbConnection.Query(context.Background(), "select * from items where rid = $1", rid)
 		dataItems, err := pgx.CollectOneRow(items, pgx.RowToStructByName[Item])
 		if err != nil {
-			panic("Failed to collect rows for items array")
+			panic("[DbGetRowById]: Failed to collect rows for items array:" + err.Error())
 		}
 
 		orderData.Items = append(orderData.Items, dataItems)
+	}
+
+	return orderData, err
+}
+
+func DbGetLastRows(count int) (order []Order, err error) {
+
+	//Get order row
+	rows, _ := dbConnection.Query(context.Background(), "select * from orders order by date_created limit $1", count)
+	orderData, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Order])
+	if err != nil {
+		panic("[DbGetLastRows]: Failder to collect rows: " + err.Error())
+	}
+
+	for i := range orderData {
+		order := &orderData[i]
+
+		//Get delivery by order id
+		delivery, _ := dbConnection.Query(context.Background(), "select * from deliveries where delivery_uid = $1 ", order.OrderUID)
+		order.Delivery, err = pgx.CollectOneRow(delivery, pgx.RowToStructByName[Delivery])
+		if err != nil {
+			panic("[DbGetLastRows]: Failed to collect delivery row:" + err.Error())
+		}
+
+		//Get payment by order id
+		payment, _ := dbConnection.Query(context.Background(), "select * from payments where transaction = $1", order.OrderUID)
+		order.Payment, err = pgx.CollectOneRow(payment, pgx.RowToStructByName[Payment])
+		if err != nil {
+			panic("[DbGetLastRows]: Failed to collect payment row:" + err.Error())
+		}
+
+		//Get every item RID
+		for _, rid := range order.ItemsRID {
+			items, _ := dbConnection.Query(context.Background(), "select * from items where rid = $1", rid)
+			dataItems, err := pgx.CollectOneRow(items, pgx.RowToStructByName[Item])
+			if err != nil {
+				panic("[DbGetLastRows]: Failed to collect item row: " + err.Error())
+			}
+			order.Items = append(order.Items, dataItems)
+		}
 	}
 
 	return orderData, err
