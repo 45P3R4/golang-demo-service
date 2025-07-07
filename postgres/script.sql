@@ -1,5 +1,5 @@
 CREATE TABLE payments(
-   transaction   VARCHAR(20) NOT NULL PRIMARY KEY
+   transaction   uuid NOT NULL PRIMARY KEY
   ,request_id    VARCHAR(30)
   ,currency      VARCHAR(3)
   ,provider      VARCHAR(10)
@@ -15,7 +15,7 @@ CREATE TABLE items(
   chrt_id      INTEGER
   ,track_number VARCHAR(20) NOT NULL
   ,price        INTEGER  NOT NULL
-  ,rid          VARCHAR(21) PRIMARY KEY
+  ,rid          uuid PRIMARY KEY
   ,name         VARCHAR(30) NOT NULL
   ,sale         INTEGER  NOT NULL
   ,size         INTEGER  NOT NULL
@@ -26,27 +26,27 @@ CREATE TABLE items(
 );
 
 CREATE TABLE deliveries(
-   delivery_uid VARCHAR(20) NOT NULL PRIMARY KEY
-  ,name        VARCHAR(20) NOT NULL
-  ,phone       VARCHAR(11)  NOT NULL
+   delivery_uid uuid NOT NULL PRIMARY KEY
+  ,name        VARCHAR(64) NOT NULL
+  ,phone       VARCHAR(15)  NOT NULL
   ,zip         INTEGER  NOT NULL
-  ,city        VARCHAR(20) NOT NULL
-  ,address     VARCHAR(20) NOT NULL
-  ,region      VARCHAR(20) NOT NULL
-  ,email       VARCHAR(20) NOT NULL
+  ,city        VARCHAR(64) NOT NULL
+  ,address     VARCHAR(64) NOT NULL
+  ,region      VARCHAR(64) NOT NULL
+  ,email       VARCHAR(64) NOT NULL
 );
 
 CREATE TABLE orders(
-   order_uid          VARCHAR(20) NOT NULL PRIMARY KEY
-  ,track_number       VARCHAR(20) NOT NULL
+   order_uid          uuid NOT NULL PRIMARY KEY
+  ,track_number       VARCHAR(36) NOT NULL
   ,entry              VARCHAR(5) NOT NULL
-  ,delivery_uid           VARCHAR(20) NOT NULL
-  ,payment_transaction    VARCHAR(20) NOT NULL
-  ,items_rid              VARCHAR(21)[] NOT NULL
+  ,delivery_uid           UUID NOT NULL
+  ,payment_transaction    UUID NOT NULL
+  ,items_rid              UUID[] NOT NULL
   ,locale             VARCHAR(3) NOT NULL
-  ,internal_signature VARCHAR(30)
-  ,customer_id        VARCHAR(20) NOT NULL
-  ,delivery_service   VARCHAR(10) NOT NULL
+  ,internal_signature VARCHAR(36)
+  ,customer_id        VARCHAR(36) NOT NULL
+  ,delivery_service   VARCHAR(36) NOT NULL
   ,shardkey           INTEGER  NOT NULL
   ,sm_id              INTEGER  NOT NULL
   ,date_created       TIME  NOT NULL
