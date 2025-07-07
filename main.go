@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/patrickmn/go-cache"
 )
 
 func getOrderById(w http.ResponseWriter, req *http.Request) {
@@ -34,21 +36,9 @@ func getOrderById(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Failed to parse UUID: ", err)
 	}
 
-	var data Order
-
-	value, isMapContainsKey := cache[id]
-
-	//Get data
-	if isMapContainsKey {
-		//From cache
-		data = value
-	} else {
-		//From db
-		data, err = DbGetRowById(id.String())
-		if err != nil {
-			fmt.Fprintf(w, "Failed to get data ftom database: %v", err)
-		}
-		cache[id] = data
+	data, err := tryGetFromCache(id)
+	if err != nil {
+		panic("[getOrderById]: Failed to get data: " + err.Error())
 	}
 
 	dataJson, err := json.Marshal(data)
@@ -61,6 +51,7 @@ func getOrderById(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
+	DbCache = cache.New(5*time.Minute, 10*time.Minute)
 	//Error handling
 	defer func() {
 		if r := recover(); r != nil {
